@@ -31,6 +31,11 @@ map_data = None
 wall_surf = None
 pacman_pos = [0, 0]
 ghost_pos = []
+pacman_dir = (1, 0)     # hướng đang đi / đang nhìn
+want_dir = None         # hướng người chơi vừa bấm, chờ rẽ
+moving = False          # False cho đến khi bấm phím đầu tiên
+STEP_MS = 140           # thời gian mỗi ô (ms): nhỏ hơn = nhanh hơn
+last_step = 0
 score = 0
 mode_text = ""
 map_text = ""
@@ -49,11 +54,16 @@ def get_map(mode, map_id):
 def start_game(mode, map_id):
     global state, screen, map_data, wall_surf, pacman_pos, ghost_pos
     global score, mode_text, map_text
+    global pacman_dir, want_dir, moving, last_step
 
     map_data = get_map(mode, map_id)
     wall_surf = build_wall_surface(map_data)
     pacman_pos = list(map_data.p_start)
     ghost_pos = list(map_data.g_start)
+    pacman_dir = (1, 0)     # hướng đang đi / đang nhìn
+    want_dir = None         # hướng người chơi vừa bấm, chờ rẽ
+    moving = False          # False cho đến khi bấm phím đầu tiên
+    last_step = pygame.time.get_ticks()
     score = 0
     mode_text = MODE_NAMES[mode]
     map_text = MAP_NAMES[map_id]
@@ -74,16 +84,32 @@ def back_to_menu():
     state = "MENU"
 
 
+def can_go(pos, d):
+    """Ô phía trước theo hướng d có đi được không (không phải tường/cửa nhà ma)."""
+    return map_data.cell(pos[0] + d[0], pos[1] + d[1]) not in ('%', '-')
+
+
+def step_pacman():
+    """Chạy mỗi STEP_MS: rẽ nếu được, rồi đi tiếp, gặp tường thì đứng yên."""
+    global pacman_pos, pacman_dir, want_dir, score
+    if not moving:
+        return
+    if want_dir and can_go(pacman_pos, want_dir):
+        pacman_dir = want_dir
+        want_dir = None
+    if can_go(pacman_pos, pacman_dir):
+        pacman_pos = [pacman_pos[0] + pacman_dir[0], pacman_pos[1] + pacman_dir[1]]
+        score += map_data.eat(pacman_pos[0], pacman_pos[1])
+
+
 def handle_play_key(key):
-    global pacman_pos, score
+    global want_dir, moving
     if key == pygame.K_ESCAPE:
         back_to_menu()
         return
-    dx, dy = MOVES.get(key, (0, 0))
-    nx, ny = pacman_pos[0] + dx, pacman_pos[1] + dy
-    if (dx or dy) and map_data.cell(nx, ny) not in ('%', '-'):
-        pacman_pos = [nx, ny]
-        score += map_data.eat(nx, ny)
+    if key in MOVES:
+        want_dir = MOVES[key]
+        moving = True
 
 
 running = True
@@ -100,6 +126,13 @@ while running:
         elif state == "PLAYING" and event.type == pygame.KEYDOWN:
             handle_play_key(event.key)
 
+    # MỚI: cập nhật vị trí Pacman theo thời gian
+    if state == "PLAYING":
+        now = pygame.time.get_ticks()
+        if now - last_step >= STEP_MS:
+            last_step = now
+            step_pacman()
+
     if state == "MENU":
         menu.draw()
     else:
@@ -107,7 +140,7 @@ while running:
         draw_map(screen, map_data, wall_surf)
         for i, pos in enumerate(ghost_pos):
             draw_g(screen, pos, GHOST_ARTS[i % len(GHOST_ARTS)])
-        draw_p(screen, pacman_pos)
+        draw_p(screen, pacman_pos, pacman_dir)      # MỚI: thêm pacman_dir
         draw_hud(screen, map_data, mode_text, map_text, score,
                  font_big, font_small, font_score)
 

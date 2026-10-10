@@ -36,6 +36,9 @@ def surface_matrix (matrix, pixel_scale=4):
 
 p_open = surface_matrix(P_OPEN)
 p_close = surface_matrix(P_CLOSED)
+DIR_ANGLE = {(1, 0): 0, (0, -1): 90, (-1, 0): 180, (0, 1): 270}
+p_open_dir = {d: pygame.transform.rotate(p_open, a) for d, a in DIR_ANGLE.items()}
+p_close_dir = {d: pygame.transform.rotate(p_close, a) for d, a in DIR_ANGLE.items()}
 goal1_surf = surface_matrix(GOAL1, pixel_scale=6)
 goal2_surf = surface_matrix(GOAL2, pixel_scale=6)
 _ghost_cache = {}
@@ -46,20 +49,22 @@ def blit_center(screen, surf, col, row):
     y = row * SIZE + LE_TREN + (SIZE - surf.get_height()) // 2
     screen.blit(surf, (x, y))
 
-def draw_p (screen, potision):
+def draw_p (screen, potision, direction=(1, 0)):
     global p_couter, is_mouth_open
     x, y = potision
-    pos_x = int (x*SIZE)
-    pos_y = int(y*SIZE + LE_TREN)
+    #pos_x = int (x*SIZE)
+    #pos_y = int(y*SIZE + LE_TREN)
 
     p_couter +=1
     if p_couter >= p_speed:
         is_mouth_open = not is_mouth_open
         p_couter = 0
 
-    current_art = p_open if is_mouth_open else p_close
+    sprites = p_open_dir if is_mouth_open else p_close_dir
 
-    screen.blit(current_art, (pos_x, pos_y))
+    #current_art = p_open if is_mouth_open else p_close
+    #screen.blit(current_art, (pos_x, pos_y))
+    blit_center(screen, sprites.get(direction, sprites[(1, 0)]), x, y)
 
 def draw_g (screen, position, ghost_art):
     x, y = position

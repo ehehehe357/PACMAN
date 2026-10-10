@@ -10,7 +10,7 @@ def map_path(filename):
 
 class MapData:
     def __init__(self, lines):
-        self.grid = [list(lines) for line in lines]
+        self.grid = [list(line) for line in lines]
         self.rows = len(self.grid)
         self.cols = len(self.grid[0])
         self.p_start = None
@@ -23,7 +23,7 @@ class MapData:
                     self.p_start = (c, r)
                     self.grid[r][c] = ' '
                 elif ch=='G':
-                    self.g_start.append (c, r)
+                    self.g_start.append ((c, r))
                     self.grid[r][c] = ' '
     def cell(self, x, y):
         if 0 <= y < self.rows and 0 <= x < self.cols:
