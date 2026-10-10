@@ -1,9 +1,13 @@
 import pygame
-from ui.pixel_assets import COLORS, P_OPEN, P_CLOSED, SIZE, LE_TREN
+from ui.pixel_assets import (
+    COLORS, P_OPEN, P_CLOSED, GOAL1, GOAL2, SIZE, LE_TREN, LE_DUOI
+)
 
 p_couter = 0
 p_speed = 10
 is_mouth_open = True
+
+WALL_T = 4
 
 def surface_matrix (matrix, pixel_scale=4):
     rows = len(matrix)
@@ -15,7 +19,7 @@ def surface_matrix (matrix, pixel_scale=4):
     P = pygame.Surface((width, height), pygame.SRCALPHA)
 
     for r_idx, row in enumerate(matrix):
-        for c_idx, char in enumerate(matrix):
+        for c_idx, char in enumerate(row):
             if char in COLORS and COLORS[char]:
                 color = COLORS[char]
                 pygame.draw.rect(
@@ -32,6 +36,15 @@ def surface_matrix (matrix, pixel_scale=4):
 
 p_open = surface_matrix(P_OPEN)
 p_close = surface_matrix(P_CLOSED)
+goal1_surf = surface_matrix(GOAL1, pixel_scale=6)
+goal2_surf = surface_matrix(GOAL2, pixel_scale=6)
+_ghost_cache = {}
+
+def blit_center(screen, surf, col, row):
+    """Vẽ surf vào chính giữa ô (col, row)."""
+    x = col * SIZE + (SIZE - surf.get_width()) // 2
+    y = row * SIZE + LE_TREN + (SIZE - surf.get_height()) // 2
+    screen.blit(surf, (x, y))
 
 def draw_p (screen, potision):
     global p_couter, is_mouth_open
@@ -55,3 +68,54 @@ def draw_g (screen, position, ghost_art):
 
     g_surf = surface_matrix(ghost_art, pixel_scale=4)
     screen.blit(g_surf, (pos_x, pos_y))
+
+def build_wall_surface(map_data):
+    """Vẽ tường 1 lần duy nhất ra 1 Surface, mỗi frame chỉ blit lại."""
+    surf = pygame.Surface((map_data.cols * SIZE, map_data.rows * SIZE), pygame.SRCALPHA)
+    color = COLORS['BL']
+    t = WALL_T
+
+    for r in range(map_data.rows):
+        for c in range(map_data.cols):
+            x, y = c * SIZE, r * SIZE
+
+            if not map_data.is_wall(c, r):
+                if map_data.grid[r][c] == '-':      # cửa nhà ma: vạch màu hồng
+                    pygame.draw.rect(surf, COLORS['P'], (x, y + SIZE // 2 - t // 2, SIZE, t))
+                continue
+
+            # Chỉ vẽ nét ở cạnh nào của ô tường tiếp giáp ô KHÔNG phải tường
+            # -> khối tường hiện ra dạng viền rỗng, giống ảnh mẫu
+            if r > 0 and not map_data.is_wall(c, r - 1):
+                pygame.draw.rect(surf, color, (x, y, SIZE, t))
+            if r < map_data.rows - 1 and not map_data.is_wall(c, r + 1):
+                pygame.draw.rect(surf, color, (x, y + SIZE - t, SIZE, t))
+            if c > 0 and not map_data.is_wall(c - 1, r):
+                pygame.draw.rect(surf, color, (x, y, t, SIZE))
+            if c < map_data.cols - 1 and not map_data.is_wall(c + 1, r):
+                pygame.draw.rect(surf, color, (x + SIZE - t, y, t, SIZE))
+    return surf
+
+
+def draw_map(screen, map_data, wall_surf):
+    screen.blit(wall_surf, (0, LE_TREN))
+    for r in range(map_data.rows):
+        for c in range(map_data.cols):
+            ch = map_data.grid[r][c]
+            if ch == 'o':
+                blit_center(screen, goal1_surf, c, r)
+            elif ch == '.':
+                blit_center(screen, goal2_surf, c, r)
+
+def draw_hud(screen, map_data, mode_text, map_text, score, font_big, font_small, font_score):
+    # Trên trái: dòng lớn = chế độ, dòng nhỏ = loại map
+    s1 = font_big.render(mode_text, True, COLORS['Y'])
+    s2 = font_small.render(map_text, True, COLORS['W'])
+    screen.blit(s1, (10, 2))
+    screen.blit(s2, (10, 2 + s1.get_height()))
+
+    # Dưới phải: score
+    s3 = font_score.render(f"SCORE: {score}", True, COLORS['Y'])
+    map_bottom = LE_TREN + map_data.rows * SIZE
+    screen.blit(s3, (screen.get_width() - s3.get_width() - 10,
+                     map_bottom + (LE_DUOI - s3.get_height()) // 2))

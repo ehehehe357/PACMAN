@@ -2,6 +2,7 @@
 
 SIZE = 24
 LE_TREN = 50
+LE_DUOI = 40
 
 COLORS = {
     'Y': (255, 245, 59),
@@ -122,6 +123,6 @@ GHOST_RED = [
     "R R R",
 ]
 
-ROAD = [
+WALL = [
     'BL'
 ]
