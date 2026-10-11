@@ -1,6 +1,9 @@
 import os
 
 MAPS_DIR = os.path.dirname(os.path.abspath(__file__))
+USE_GENERATOR = True      # True: tự sinh map mỗi lần chơi; False: đọc file tinyMaze*.txt
+MAP_SEED = None           # None: mỗi lần một map khác; đặt số (vd 11) để map luôn giống nhau
+MAP_SIZES = {1: (25, 17), 2: (29, 19), 3: (33, 23)}    # (số cột, số hàng) của Tiny/Medium/Big
 
 SCORE_G1 = 50
 SCORE_G2 = 10
@@ -55,4 +58,15 @@ def load_map (path):
     for i, line in enumerate(lines, 1):
         if len(line) != width:
             raise ValueError(f"{path}: dòng {i} dài {len(line)} ký tự, dòng 1 dài {width}")
+    return MapData(lines)
+
+def get_map(mode, map_id):
+    from maps.gen_map import gen_map
+    """Mỗi lần gọi trả về 1 map: mode 1 = không ma, mode 2/3 = có ma; map_id 1/2/3 = Tiny/Medium/Big."""
+    if not USE_GENERATOR:
+        name = "tinyMaze.txt" if mode == 1 else "tinyMaze_ghost.txt"
+        return load_map(map_path(name))
+
+    cols, rows = MAP_SIZES[map_id]
+    lines = gen_map(map_id, with_ghost=(mode != 1), seed=MAP_SEED)
     return MapData(lines)

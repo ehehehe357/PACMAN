@@ -3,6 +3,7 @@
 SIZE = 24
 LE_TREN = 50
 LE_DUOI = 40
+WIDTH, HEIGHT = 600, 500
 
 COLORS = {
     'Y': (255, 245, 59),

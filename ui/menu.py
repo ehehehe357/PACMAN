@@ -52,6 +52,10 @@ class Menu:
 
         self.selected_index = 0
 
+    def reset(self):
+        self.current_state = 1
+        self.selected_index = 0
+    
     def draw_box (self, options, start_y):
         for i, text in enumerate(options):
             is_selected = (i == self.selected_index)
