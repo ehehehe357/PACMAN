@@ -122,17 +122,31 @@ def draw_hud(screen, map_data, mode_text, map_text, score, font_big, font_small,
                      map_bottom + (LE_DUOI - s3.get_height()) // 2))
 
 def draw_box_winlose(screen, title_text, sub_text, font_title, font_sub, screen_width, screen_height):
+    GAP = 20
+    PAD = 60
     box_width = 360
+
+    '''box_width = 360
     box_height = 180
+    box_x = (screen_width - box_width) // 2
+    box_y = (screen_height - box_height) // 2
+    box_rect = pygame.Rect(box_x, box_y, box_width, box_height)'''
+
+    title_surf = font_title.render(title_text, True, COLORS.get('Y', (255, 245, 59)))
+    sub_surf = font_sub.render(sub_text, True, COLORS.get('Y', (255, 245, 59)))
+
+    t_ink = title_surf.get_bounding_rect()
+    s_ink = sub_surf.get_bounding_rect()
+
+    box_height = PAD + t_ink.height + GAP + s_ink.height + PAD
     box_x = (screen_width - box_width) // 2
     box_y = (screen_height - box_height) // 2
     box_rect = pygame.Rect(box_x, box_y, box_width, box_height)
 
     pygame.draw.rect(screen, COLORS.get('BG', (3, 3, 3)), box_rect, border_radius=12)
-    pygame.draw.rect(screen, COLORS.get('W', (255, 255, 255)), box_rect, 3, border_radius=12)
+    pygame.draw.rect(screen, COLORS.get('BL'), box_rect, 3, border_radius=12)
 
-    title_surf = font_title.render(title_text, True, COLORS.get('Y', (255, 245, 59)))
-    screen.blit(title_surf, title_surf.get_rect(center=(box_rect.centerx, box_rect.y + 55)))
-
-    sub_surf = font_sub.render(sub_text, True, COLORS.get('W', (255, 255, 255)))
-    screen.blit(sub_surf, sub_surf.get_rect(center=(box_rect.centerx, box_rect.y + 120)))
+    title_y = box_rect.y + PAD - t_ink.top
+    sub_y = box_rect.y + PAD + t_ink.height + GAP - s_ink.top
+    screen.blit(title_surf, title_surf.get_rect(midtop=(box_rect.centerx, title_y)))
+    screen.blit(sub_surf, sub_surf.get_rect(midtop=(box_rect.centerx, sub_y)))

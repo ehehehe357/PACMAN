@@ -6,7 +6,7 @@ from ui.pixel_assets import COLORS
 b_width = 400
 b_height = 50
 
-FONT_HEADING = "04B_30_.TTF"
+FONT_HEADING = "04B_30__.TTF"
 FONT_MAIN = "SVN-Determination Sans.otf"
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -38,9 +38,9 @@ class Menu:
             "Exit"
         ]
         self.option2 = [
-            "Discovery Mode\nKhông có ma", 
-            "Survival Mode\nBa ma săn đuổi", 
-            "Counter-Attack Mode\nSăn ma", 
+            "Player vs AI Ghosts\nNgười chơi vs Ma AI", 
+            "AI vs AI Autoplay\nPacman AI vs Ma AI", 
+            "Discovery Mode\nLuyện tập không ma", 
             "Back"
         ]
         self.option3 = [

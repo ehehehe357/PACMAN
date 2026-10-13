@@ -1,4 +1,8 @@
-from util import Stack, Queue, PriorityQueue
+try:
+    from src.util import Stack, Queue, PriorityQueue
+except ImportError:
+    from util import Stack, Queue, PriorityQueue
+# Ban đầu viết from util import S , Q , PQ chỉ chạy được khi đứng trực tiếp trong thư mục src/.Nếu đứng ở thử mục gốc thì tịt.
 import time
 class SearchProblem:
     """
@@ -49,7 +53,7 @@ def breadth_first_search(problem):
     nodes_expanded = 0
     frontier = Queue()
     frontier.push((start_state,[]))
-    visited = set()
+    visited = {start_state}
     while not frontier.is_empty():
         state,actions = frontier.pop()
         if problem.is_goal_state(state):
@@ -136,7 +140,7 @@ def a_star_search(problem, heuristic = null_heuristic):
     frontier = PriorityQueue()
     initial_f = 0 + heuristic(start_state,problem)
     frontier.push((start_state, [], 0), initial_f)
-    explored_cost = {}
+    explored_costs = {}
     while not frontier.is_empty():
         state, actions, g_cost = frontier.pop()
         if problem.is_goal_state(state):
@@ -146,12 +150,12 @@ def a_star_search(problem, heuristic = null_heuristic):
                 "nodes_expanded" : nodes_expanded,
                 "execution_time" : time.time() - start_time
             }
-        if state not in explored_cost or g_cost < explored_cost[state]:
-            explored_cost[state] = g_cost
+        if state not in explored_costs or g_cost < explored_costs[state]:
+            explored_costs[state] = g_cost
             nodes_expanded +=1
             for next_state, action, step_cost in problem.get_successors(state):
                 new_cost = g_cost + step_cost
-                if next_state not in explored_cost or new_cost < explored_cost[next_state]:
+                if next_state not in explored_costs or new_cost < explored_costs[next_state]:
                     f_cost = new_cost + heuristic(next_state,problem)
                     frontier.push((next_state, actions + [action], new_cost), f_cost)
     return {

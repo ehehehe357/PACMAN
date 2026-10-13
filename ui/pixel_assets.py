@@ -15,6 +15,7 @@ COLORS = {
     'B': (72, 227, 253),
     'BL': (15, 84, 252),
     'BG': (3, 3, 3),
+    'D': (0, 0, 0)
 }
 
 P_OPEN = [
@@ -122,6 +123,22 @@ GHOST_RED = [
     "RRRRR",
     "RRRRR",
     "R R R",
+]
+
+GHOST_EAT = [
+    " WWW ",
+    "WDWDW",
+    "WWWWW",
+    "WWWWW",
+    "W W W",
+]
+
+GHOST_ATE = [
+    " WWW ",
+    "WDDDW",
+    "WDWDW",
+    "WDDDW",
+    " WWW "
 ]
 
 WALL = [

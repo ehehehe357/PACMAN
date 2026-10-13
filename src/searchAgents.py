@@ -1,4 +1,10 @@
-from search import SearchProblem
+try:
+    from src.search import SearchProblem
+    from src.evaluation import grid_positions
+except ImportError:
+    from search import SearchProblem
+    from evaluation import grid_positions
+#lỗi y như bên search
 
 class PositionSearchProblem(SearchProblem):
     """
@@ -15,8 +21,17 @@ class PositionSearchProblem(SearchProblem):
         """
         self.start_state = start_pos
         self.goal_state = goal_pos
-        self.walls = walls
         self.cost_fn = cost_fn
+        # TỰ ĐỘNG CHUẨN HÓA: Hỗ trợ cả 2D grid lẫn set
+        if isinstance(walls, list):
+            self.walls = {
+                (x, y)
+                for y, row in enumerate(walls)
+                for x, is_wall in enumerate(row)
+                if is_wall
+            }
+        else:
+            self.walls = walls  # Nếu đã là set sẵn thì giữ nguyên
 
     def get_start_state(self):
         """Trả về trạng thái bắt đầu (x, y)"""
@@ -38,10 +53,10 @@ class PositionSearchProblem(SearchProblem):
         # Thống nhất 4 hành động và sự thay đổi tọa độ tương ứng (dx, dy)
         # Giả sử: x tăng sang phải, y tăng đi xuống dưới (theo chỉ số dòng/cột)
         actions = [
-            ('North', (x, y - 1)),
-            ('South', (x, y + 1)),
-            ('East',  (x + 1, y)),
-            ('West',  (x - 1, y))
+            ('NORTH', (x, y - 1)),
+            ('SOUTH', (x, y + 1)),
+            ('EAST',  (x + 1, y)),
+            ('WEST',  (x - 1, y))
         ]
 
         for action, next_pos in actions:
@@ -83,7 +98,16 @@ class FoodSearchProblem(SearchProblem):
         """
         self.start_pos = start_pos
         self.start_foods = frozenset(foods_set)
-        self.walls = walls
+        # TỰ ĐỘNG CHUẨN HÓA: Hỗ trợ cả 2D grid lẫn set
+        if isinstance(walls, list):
+            self.walls = {
+                (x, y)
+                for y, row in enumerate(walls)
+                for x, is_wall in enumerate(row)
+                if is_wall
+            }
+        else:
+            self.walls = walls  # Nếu đã là set sẵn thì giữ nguyên
 
     def get_start_state(self):
         # Trạng thái xuất phát gồm: vị trí Pacman và toàn bộ thức ăn ban đầu
@@ -100,10 +124,10 @@ class FoodSearchProblem(SearchProblem):
         x, y = pacman_pos
 
         directions = [
-            ('North', (x, y - 1)),
-            ('South', (x, y + 1)),
-            ('East',  (x + 1, y)),
-            ('West',  (x - 1, y))
+            ('NORTH', (x, y - 1)),
+            ('SOUTH', (x, y + 1)),
+            ('EAST',  (x + 1, y)),
+            ('WEST',  (x - 1, y))
         ]
 
         for action, next_pos in directions:
@@ -138,3 +162,39 @@ def food_heuristic(state, problem=None):
     # Tìm khoảng cách Manhattan lớn nhất tới một hạt thức ăn bất kỳ còn lại
     max_distance = max(abs(px - fx) + abs(py - fy) for fx, fy in remaining_foods)
     return max_distance
+class SearchAgent:
+    """Agent điều khiển Pacman đi theo kết quả của thuật toán tìm kiếm."""
+    def __init__(self, search_function, problem_class=PositionSearchProblem, heuristic=None):
+        self.search_function = search_function
+        self.problem_class = problem_class
+        self.heuristic = heuristic
+        self.actions = None  # Danh sách chuỗi hành động tìm được
+
+    def get_action(self, state):
+        # 1. Ở bước đầu tiên: chạy thuật toán tìm kiếm một lần duy nhất để tìm đường
+        if self.actions is None:
+            # Lấy vị trí đích là hạt thức ăn đầu tiên (nếu tìm 1 đích)
+            # Hoặc truyền food_grid (nếu là FoodSearchProblem)
+            start_pos = state.get_pacman_position()
+            # Ví dụ tìm hạt mồi đầu tiên:
+            #from evaluation import grid_positions( đã import ở đầu)
+            foods = grid_positions(state.get_food())
+            #nam sửa chỗ này
+            if self.problem_class == FoodSearchProblem:
+                # FoodSearchProblem cần truyền tập hợp tất cả các hạt mồi
+                problem = FoodSearchProblem(start_pos, foods, state.get_walls())
+            else:
+                # PositionSearchProblem chỉ cần 1 điểm đích (lấy hạt mồi đầu tiên)
+                goal_pos = foods[0] if foods else start_pos
+                problem = self.problem_class(start_pos, goal_pos, state.get_walls())
+                #Nam sửa chỗ này
+            if self.heuristic:
+                result = self.search_function(problem, self.heuristic)
+            else:
+                result = self.search_function(problem)
+            self.actions = result["actions"] or []
+
+        # 2. Ở các bước tiếp theo: lấy từng bước ra để đi
+        if self.actions:
+            return self.actions.pop(0)
+        return None  # Đã đi hết đường hoặc không tìm thấy đường

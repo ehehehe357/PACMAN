@@ -6,13 +6,19 @@ class GameState:
     giữa Game Engine (Pygame) và các thuật toán AI (Search AI, Minimax, Expectimax).
     """
 
-    def __init__(self, layout=None):
+    def __init__(self, layout):
+        if layout is None:
+            raise ValueError("Layout ko được để trống đâu cưng")
+        
         
         # Khởi tạo trạng thái game dựa trên layout (bản đồ đọc từ maps.txt).
         
         self.pacman_pos = layout.pacman_start      
-        self.ghost_positions = layout.ghost_starts  
-        self.food_grid = layout.food               # Grid 2D chứa Bool (True là có mồi)
+        self.ghost_positions = list(layout.ghost_starts)
+        self.ghost_starts = list(layout.ghost_starts)  # Lưu vị trí xuất phát để hồi sinh ma khi bị ăn
+        self.scared_timers = [0] * len(self.ghost_positions)  # Bộ đếm thời gian sợ của từng con ma
+        self.food_grid = layout.food
+        layout.food               # Grid 2D chứa Bool (True là có mồi)
         self.walls = layout.walls                  # Grid 2D chứa Bool (True là tường)
         self.capsules = layout.capsules            # List [(x, y)...]
         self.score = 0                             # Điểm số hiện tại
@@ -51,6 +57,16 @@ class GameState:
     def get_num_agents(self):
         """trả về tổng số agent có trên bàn chơi"""
         return 1 + len(self.ghost_positions)
+
+    def get_ghost_scared_timers(self):
+        """Trả về danh sách thời gian sợ còn lại của các con ma."""
+        return self.scared_timers
+
+    def is_ghost_scared(self, ghost_index):
+        """Trả về True nếu con ma thứ ghost_index (0-indexed) đang sợ."""
+        if 0 <= ghost_index < len(self.scared_timers):
+            return self.scared_timers[ghost_index] > 0
+        return False
 
     # =========================================================================
     # 2. NHÓM HÀM LOGIC QUYẾT ĐỊNH VÀ GIẢ LẬP TƯƠNG LAI
@@ -127,17 +143,23 @@ class GameState:
                 successor.food_grid[y][x] = False # ăn mồi rồi nên bỏ mồi khỏi ô đó
                 successor.score += 10 # cộng điểm ăn mồi
 
-            #khi pacman ăn capsule
+            # khi pacman ăn capsule
             if new_pos in successor.capsules:
                 successor.capsules.remove(new_pos) # bỏ capsule khỏi danh sách
                 successor.score += 50 # cộng điểm ăn capsule
+                # Kích hoạt trạng thái sợ cho toàn bộ ma (40 bước đi)
+                SCARED_TIME = 40
+                successor.scared_timers = [SCARED_TIME] * len(successor.ghost_positions)
 
         else:
-            #vị trí mới của ma
-            ghost_idx= agent_index - 1
+            # vị trí mới của ma
+            ghost_idx = agent_index - 1
             old_pos = successor.ghost_positions[ghost_idx]
             new_pos = self._get_next_position(old_pos, action)
             successor.ghost_positions[ghost_idx] = new_pos
+            # Giảm thời gian sợ của con ma này đi 1 bước
+            if successor.scared_timers[ghost_idx] > 0:
+                successor.scared_timers[ghost_idx] -= 1
         
         # 3. Kiểm tra điều kiện Va chạm / Thắng / Thua (_update_win_lose_status)
         successor._update_win_lose_status()
@@ -180,25 +202,28 @@ class GameState:
         return current_pos  # Nếu action không hợp lệ, giữ nguyên vị trí.
 
     def _update_win_lose_status(self):
-        """Cập nhật trạng thái Thắng/Thua cho bàn chơi."""
-        # 1. Kiểm tra Pacman đụng độ Ma -> Thua (lose = True, score -= 500)
-        for ghost_pos in self.ghost_positions:
-            if self.pacman_pos == ghost_pos:
-                self.lose = True
-                self.score -= 500
-                return  # Không cần kiểm tra tiếp nếu đã thua
-        # 2. Kiểm tra ăn hết mồi -> Thắng (win = True, score += 500)
+        # 1. Kiểm tra Pacman đụng độ Ma
+        if not self.lose:
+            for i, ghost_pos in enumerate(self.ghost_positions):
+                if self.pacman_pos == ghost_pos:
+                    if self.scared_timers[i] > 0:
+                        # Ma đang sợ: Pacman ăn được ma!
+                        self.score += 200  # Cộng 200 điểm
+                        self.scared_timers[i] = 0  # Con ma này hết sợ
+                        # Đưa ma về vị trí xuất phát ban đầu
+                        self.ghost_positions[i] = self.ghost_starts[i]
+                    else:
+                        # Ma bình thường: Pacman bị bắt -> Thua
+                        self.lose = True
+                        self.score -= 500
+                        return
 
-        has_food= False
-        for row in self.food_grid:
-            if True in row:
-                has_food = True
-                break
-        # kiểm tra xem còn capsule không
-
-        if not has_food and len(self.capsules) == 0:
-            self.win = True
-            self.score += 500
+    # 2. Kiểm tra ăn hết mồi -> Thắng
+        if not self.win and not self.lose:
+            has_food = any(True in row for row in self.food_grid)
+            if not has_food and len(self.capsules) == 0:
+                self.win = True
+                self.score += 500
 
 class Game:
     """ Class điều phối và chứa vòng lặp của game """
@@ -223,6 +248,9 @@ class Game:
             # hỏi agent xem hướng đi nào tối ưu nhất
 
             action = current_agent.get_action(self.state)
+            if action is None:
+                self.game_over = True
+                break
             is_human = getattr(current_agent, 'is_human', False)
             penalty = not is_human  # Nếu là người chơi, không áp dụng trừ điểm
 
