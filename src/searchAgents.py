@@ -4,7 +4,6 @@ try:
 except ImportError:
     from search import SearchProblem
     from evaluation import grid_positions
-#lỗi y như bên search
 
 class PositionSearchProblem(SearchProblem):
     """
@@ -22,13 +21,13 @@ class PositionSearchProblem(SearchProblem):
         self.start_state = start_pos
         self.goal_state = goal_pos
         self.cost_fn = cost_fn
-        # TỰ ĐỘNG CHUẨN HÓA: Hỗ trợ cả 2D grid lẫn set
+        # TỰ ĐỘNG CHUẨN HÓA: Hỗ trợ cả 2D grid lẫn set, tương thích cả True/False lẫn ký tự '%'
         if isinstance(walls, list):
             self.walls = {
                 (x, y)
                 for y, row in enumerate(walls)
                 for x, is_wall in enumerate(row)
-                if is_wall
+                if (is_wall is True or is_wall == '%')
             }
         else:
             self.walls = walls  # Nếu đã là set sẵn thì giữ nguyên
@@ -68,9 +67,19 @@ class PositionSearchProblem(SearchProblem):
         return successors
 
     def get_cost_of_actions(self, actions):
-        """Tính tổng chi phí của một danh sách các hành động"""
-        # Nếu chi phí đồng nhất = 1 thì tổng chi phí chính bằng số bước đi
-        return len(actions)
+            """Tính tổng chi phí thực tế dựa theo hàm cost_fn."""
+            x, y = self.start_state
+            total_cost = 0
+            dir_map = {
+                'NORTH': (0, -1), 'SOUTH': (0, 1),
+                'EAST': (1, 0),   'WEST': (-1, 0)
+            }
+            for action in actions:
+                if action in dir_map:
+                    dx, dy = dir_map[action]
+                    x, y = x + dx, y + dy
+                    total_cost += self.cost_fn((x, y))
+            return total_cost
 def manhattan_heuristic(state, problem=None):
     """
     Hàm Heuristic tính khoảng cách Manhattan từ vị trí hiện tại đến đích.
@@ -98,13 +107,13 @@ class FoodSearchProblem(SearchProblem):
         """
         self.start_pos = start_pos
         self.start_foods = frozenset(foods_set)
-        # TỰ ĐỘNG CHUẨN HÓA: Hỗ trợ cả 2D grid lẫn set
+        # TỰ ĐỘNG CHUẨN HÓA: Hỗ trợ cả 2D grid lẫn set, tương thích cả True/False lẫn ký tự '%'
         if isinstance(walls, list):
             self.walls = {
                 (x, y)
                 for y, row in enumerate(walls)
                 for x, is_wall in enumerate(row)
-                if is_wall
+                if (is_wall is True or is_wall == '%')
             }
         else:
             self.walls = walls  # Nếu đã là set sẵn thì giữ nguyên
@@ -164,11 +173,13 @@ def food_heuristic(state, problem=None):
     return max_distance
 class SearchAgent:
     """Agent điều khiển Pacman đi theo kết quả của thuật toán tìm kiếm."""
-    def __init__(self, search_function, problem_class=PositionSearchProblem, heuristic=None):
+    def __init__(self, search_function, problem_class=PositionSearchProblem, heuristic=None, cost_fn=None):
         self.search_function = search_function
         self.problem_class = problem_class
         self.heuristic = heuristic
+        self.cost_fn = cost_fn or (lambda x:1)
         self.actions = None  # Danh sách chuỗi hành động tìm được
+        self.search_stats = None
 
     def get_action(self, state):
         # 1. Ở bước đầu tiên: chạy thuật toán tìm kiếm một lần duy nhất để tìm đường
@@ -179,22 +190,25 @@ class SearchAgent:
             # Ví dụ tìm hạt mồi đầu tiên:
             #from evaluation import grid_positions( đã import ở đầu)
             foods = grid_positions(state.get_food())
-            #nam sửa chỗ này
             if self.problem_class == FoodSearchProblem:
                 # FoodSearchProblem cần truyền tập hợp tất cả các hạt mồi
                 problem = FoodSearchProblem(start_pos, foods, state.get_walls())
             else:
                 # PositionSearchProblem chỉ cần 1 điểm đích (lấy hạt mồi đầu tiên)
                 goal_pos = foods[0] if foods else start_pos
-                problem = self.problem_class(start_pos, goal_pos, state.get_walls())
-                #Nam sửa chỗ này
+                problem = self.problem_class(start_pos, goal_pos, state.get_walls(), cost_fn=self.cost_fn)
             if self.heuristic:
                 result = self.search_function(problem, self.heuristic)
             else:
                 result = self.search_function(problem)
-            self.actions = result["actions"] or []
-
-        # 2. Ở các bước tiếp theo: lấy từng bước ra để đi
-        if self.actions:
+            self.search_stats = result
+            if result["actions"] is None:
+                self.actions = []
+                print("[SearchAgent] Không tìm thấy đường đi tới đích!")
+                return "Stop"
+            self.actions = list(result["actions"])
+        if len(self.actions) > 0:
             return self.actions.pop(0)
-        return None  # Đã đi hết đường hoặc không tìm thấy đường
+
+        # 3. Đã đi hết toàn bộ đường đi đã tìm được
+        return "Stop"

@@ -34,7 +34,12 @@ class MapData:
         if 0 <= y < self.rows and 0 <= x < self.cols:
             return self.grid[y][x]
         return '%'
-
+    def get_cost(self, x, y):
+        """Trả về chi phí bước vào ô (x, y)."""
+        ch = self.cell(x, y)
+        if ch == '~':
+            return 5   # Vũng bùn / nước: chi phí 5
+        return 1       # Đường bình thường: chi phí 
     def is_wall (self, x, y):
         return self.cell(x, y) == '%'
 
@@ -89,12 +94,12 @@ def load_map (path):
 
 def get_map(mode, map_id):
     from maps.gen_map import gen_map
-    """Mỗi lần gọi trả về 1 map: mode 3 = không ma, mode 1/2 = có ma; map_id 1/2/3 = Tiny/Medium/Big."""
+    """Mỗi lần gọi trả về 1 map: mode 1 = không ma, mode 2/3 = có ma; map_id 1/2/3 = Tiny/Medium/Big."""
     if not USE_GENERATOR:
-        name = "tinyMaze.txt" if mode == 3 else "tinyMaze_ghost.txt"
+        name = "tinyMaze.txt" if mode == 1 else "tinyMaze_ghost.txt"
         return load_map(map_path(name))
 
     cols, rows = MAP_SIZES[map_id]
-    lines = gen_map(map_id, with_ghost=(mode != 3), seed=MAP_SEED)
+    lines = gen_map(map_id, with_ghost=(mode != 1), seed=MAP_SEED)
     return MapData(lines)
 

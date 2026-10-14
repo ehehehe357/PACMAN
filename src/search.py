@@ -164,5 +164,34 @@ def a_star_search(problem, heuristic = null_heuristic):
         "nodes_expanded" : nodes_expanded,
         "execution_time" : time.time() - start_time
     }
-
-        
+def greedy_best_first_search(problem,heuristic = null_heuristic):
+    start_time = time.time()
+    start_state = problem.get_start_state()
+    nodes_expanded = 0
+    frontier = PriorityQueue()
+    initial_h = heuristic(start_state,problem)
+    frontier.push((start_state,[],0),initial_h)
+    explored = set()
+    while not frontier.is_empty():
+        state,actions,g_cost = frontier.pop()
+        if problem.is_goal_state(state):
+            return{
+                "actions" : actions,
+                "total_cost" : g_cost,
+                "nodes_expanded" : nodes_expanded,
+                "execution_time" : time.time() - start_time
+            }
+        if state not in explored:
+            explored.add(state)
+            nodes_expanded += 1
+            for next_state,action,step_cost in problem.get_successors(state):
+                if next_state not in explored:
+                    new_cost = g_cost + step_cost
+                    h_cost = heuristic(next_state,problem)
+                    frontier.push((next_state, actions + [action], new_cost), h_cost)
+    return{
+        "actions" : None,
+        "total_cost" : 0,
+        "nodes_expanded" : nodes_expanded,
+        "execution_time" : time.time() - start_time
+    }

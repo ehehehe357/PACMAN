@@ -62,29 +62,3 @@ def load_map(file_path):
             if layout.walls[y][x]:
                 layout.wall_types[y][x] = calculate_wall_type(layout.walls, x, y, layout.height, layout.width)
     return layout
-
-
-def calculate_wall_type(walls, x, y, height, width):
-    """xác định loại tường dựa trên các ô xung quanh"""
-    has_north =(y > 0) and walls[y-1][x]
-    has_south = (y < height - 1) and walls[y + 1][x]
-    has_west = (x > 0) and walls[y][x - 1]
-    has_east = (x < width - 1) and walls[y][x + 1]
-    # kiểm tra các góc tường
-    if has_south and not has_north and not has_west and has_east:
-        return "corner_top_left"
-    elif has_south and has_west and not has_north and not has_east:
-        return "corner_top_right"
-    elif has_north and has_east and not has_south and not has_west:
-        return "corner_bottom_left"
-    elif has_north and has_west and not has_south and not has_east:
-        return "corner_bottom_right"
-
-    #kiểm tra các cạnh tường
-    if has_north and has_south and not has_west and not has_east:
-        return "vertical"
-    elif has_west and has_east and not has_north and not has_south:
-        return "horizontal"
-    
-    # các ngã ba, ngã 4 or ngõ cụt
-    return "wall_default"  

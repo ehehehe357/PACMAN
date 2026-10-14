@@ -42,6 +42,7 @@ p_close_dir = {d: pygame.transform.rotate(p_close, a) for d, a in DIR_ANGLE.item
 goal1_surf = surface_matrix(GOAL1, pixel_scale=6)
 goal2_surf = surface_matrix(GOAL2, pixel_scale=6)
 _ghost_cache = {}
+_mud_txt_surf = None
 
 def blit_center(screen, surf, col, row):
     """Vẽ surf vào chính giữa ô (col, row)."""
@@ -105,21 +106,34 @@ def draw_map(screen, map_data, wall_surf):
     for r in range(map_data.rows):
         for c in range(map_data.cols):
             ch = map_data.grid[r][c]
-            if ch == 'o':
+            x = c * SIZE
+            y = r * SIZE + LE_TREN
+            
+            # Vẽ ô bùn lầy '~' có viền và đánh dấu chi phí = 5
+            if ch == '~':
+                mud_rect = pygame.Rect(x + 2, y + 2, SIZE - 4, SIZE - 4)
+                pygame.draw.rect(screen, COLORS['MUD'], mud_rect, border_radius=4)
+                # Vẽ nhãn số 5 nhỏ
+                global _mud_txt_surf
+                if _mud_txt_surf is None:
+                    _font_mini = pygame.font.SysFont("arial", 12, bold=True)
+                    _mud_txt_surf = _font_mini.render("5", True, COLORS['MUD_TXT'])
+                screen.blit(_mud_txt_surf, _mud_txt_surf.get_rect(center=mud_rect.center))
+            elif ch == 'o':
                 blit_center(screen, goal1_surf, c, r)
             elif ch == '.':
                 blit_center(screen, goal2_surf, c, r)
 
 def draw_hud(screen, map_data, mode_text, map_text, score, font_big, font_small, font_score):
+    # bên trái:tên chế độ và tên map
     s1 = font_big.render(mode_text, True, COLORS['Y'])
     s2 = font_small.render(map_text, True, COLORS['W'])
-    screen.blit(s1, (10, 2))
-    screen.blit(s2, (10, 2 + s1.get_height()))
+    screen.blit(s1, (10, 4))
+    screen.blit(s2, (10, 4 + s1.get_height()))
 
+    # bên phải hiện score ở góc trên cùng bên phải
     s3 = font_score.render(f"SCORE: {score}", True, COLORS['Y'])
-    map_bottom = LE_TREN + map_data.rows * SIZE
-    screen.blit(s3, (screen.get_width() - s3.get_width() - 10,
-                     map_bottom + (LE_DUOI - s3.get_height()) // 2))
+    screen.blit(s3, (screen.get_width() - s3.get_width() - 15, 10))
 
 def draw_box_winlose(screen, title_text, sub_text, font_title, font_sub, screen_width, screen_height):
     GAP = 20

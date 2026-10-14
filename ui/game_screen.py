@@ -42,7 +42,7 @@ class ScreenLayout:
         self.food = [[map_data.grid[r][c] == '.' for c in range(map_data.cols)] for r in range(map_data.rows)]
         self.capsules = [(c, r) for r in range(map_data.rows) for c in range(map_data.cols) if map_data.grid[r][c] == 'o']
 
-STEP_MS = 90
+STEP_MS = 150
 P_BLINK = 500
 P_BLINKS = 3
 MOVES = {
@@ -106,6 +106,9 @@ class GameScreen:
         self.cached_walls = [[self.map_data.grid[r][c] == '%' for c in range(self.map_data.cols)] for r in range(self.map_data.rows)]
         self.last_step = pygame.time.get_ticks()
         self.status = "PLAYING"
+        self.paused = False #trạng thái tạm dừng
+        self.btn_pause_rect = None
+        self.btn_restart_rect = None
 
         # Cấu hình AI: Mode 2 là Pacman AI tự chơi, Mode 1 là Người chơi vs Ma AI
         self.mode = mode
@@ -142,13 +145,43 @@ class GameScreen:
         return state
 
     def handle_event(self, event):
+        # 1 BẮT PHÍM BẤM
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 return "BACK"
+
+            # phím SPACE:bật tắt tạm dừng
+            elif event.key == pygame.K_SPACE:
+                self.paused = not self.paused
+
+            # phím R : restart
+            elif event.key == pygame.K_r:
+                self.start(self.mode,self.map_id)
+
+            # phím S: chạy 1 bước khi đang tạm dừng
+            elif event.key == pygame.K_s:
+                if self.paused and self.status == "PLAYING":
+                    self.step_once()
+
             # Nếu là chế độ người chơi (Mode != 2) thì nhận phím bấm
-            if not self.is_ai_pacman and event.key in MOVES:
+            elif not self.is_ai_pacman and event.key in MOVES:
                 self.pacman_dir = MOVES[event.key]
                 self.moving = True
+
+        # 2 BẮT CLICK CHUỘT VÀO CÁC NÚT TRÊN MÀN HÌNH
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            mouse_pos = event.pos
+             #click pause / resume
+            if self.btn_pause_rect and self.btn_pause_rect.collidepoint(mouse_pos):
+                self.paused = not self.paused
+
+            #click nút STEP
+            elif self.btn_step_rect and self.btn_step_rect.collidepoint(mouse_pos):
+                if self.paused and self.status == "PLAYING":
+                    self.step_once()
+            # Click nút RESTART
+            elif self.btn_restart_rect and self.btn_restart_rect.collidepoint(mouse_pos):
+                self.start(self.mode, self.map_id)
         return None
 
     def can_go(self, direction):
@@ -167,12 +200,18 @@ class GameScreen:
             else:
                 self.moving = False
 
+
         if not self.moving:
             return
         if self.can_go(self.pacman_dir):
             self.pacman_pos[0] += self.pacman_dir[0]
             self.pacman_pos[1] += self.pacman_dir[1]
             x, y = self.pacman_pos
+
+            # Chỉ phạt trừ điểm khi Pacman bước vào ô bùn lầy '~'
+            if self.map_data.cell(x, y) == '~':
+                self.score -= 5  # Bị phạt 3 điểm vì lội bùn
+                
             if self.map_data.cell(x, y) == 'o':
                 self.start_scared()
             self.score += self.map_data.eat(x, y)
@@ -257,16 +296,24 @@ class GameScreen:
             if now - self.dying_start >= P_BLINKS * 2 * P_BLINK:
                 self.status = "LOSE"
             return
-        if self.status != "PLAYING":                  # WIN / LOSE: đứng yên
+        if self.status != "PLAYING":
             return
-        
+        #Nếu đang dừng thì ko tự động đi bước tiếp thep
+        if self.paused:
+            return
         if now - self.last_step < STEP_MS:
             return
         self.last_step = now
+        self.step_once() #gọi hàm 1 bước ở dưới
+
+        
+    def step_once(self):
+        """Thực hiện 1 bước của pacman và ghost"""
+        if self.status != "PLAYING":                  # WIN / LOSE: đứng yên
+            return
         self.step_pacman()
         self.step_eaten_ghosts()
         self.step_ghosts()
-        #CHỖ NÀY NÀO ĐỂ MULTIAGENTS.PY VÔ
         self.check_collision()
         self.check_end()
 
@@ -339,3 +386,42 @@ class GameScreen:
         elif self.status == "WIN":
             draw_box_winlose(screen, "YOU WIN", "THẮNG GÒI ĐÓ, VUI HĂM",
                              self.font_bigger, self.font_score, w, h)
+                                     # =========================================================
+        # VẼ 3 NÚT ĐIỀU KHIỂN CÁCH ĐỀU NHAU Ở DƯỚI BẢN ĐỒ
+        # =========================================================
+        screen_w = screen.get_width()
+        map_bottom = LE_TREN + self.map_data.rows * SIZE
+        
+        btn_w = 140   # Chiều rộng mỗi nút
+        btn_h = 28    # Chiều cao mỗi nút
+        btn_y = map_bottom + (LE_DUOI - btn_h) // 2  # Căn giữa theo chiều dọc dải dưới
+        
+        # Tính khoảng cách cách đều 4 phía
+        gap = (screen_w - 3 * btn_w) // 4
+
+        # 1. NÚT 1: PAUSE / RESUME [SPACE]
+        x1 = gap
+        self.btn_pause_rect = pygame.Rect(x1, btn_y, btn_w, btn_h)
+        pause_text = "RESUME [Space]" if self.paused else "PAUSE [Space]"
+        pause_color = (230, 120, 30) if self.paused else (50, 50, 60) # Cam khi dừng, Xám khi chạy
+        pygame.draw.rect(screen, pause_color, self.btn_pause_rect, border_radius=6)
+        pygame.draw.rect(screen, COLORS['W'], self.btn_pause_rect, width=1, border_radius=6) # Viền trắng
+        txt_pause = self.font_small.render(pause_text, True, COLORS['W'])
+        screen.blit(txt_pause, txt_pause.get_rect(center=self.btn_pause_rect.center))
+
+        # 2. NÚT 2: STEP [S]
+        x2 = gap * 2 + btn_w
+        self.btn_step_rect = pygame.Rect(x2, btn_y, btn_w, btn_h)
+        step_color = (40, 100, 200) if self.paused else (40, 40, 45) # Xanh sáng khi pause, xám mờ khi đang chạy
+        pygame.draw.rect(screen, step_color, self.btn_step_rect, border_radius=6)
+        pygame.draw.rect(screen, COLORS['W'] if self.paused else (100, 100, 100), self.btn_step_rect, width=1, border_radius=6)
+        txt_step = self.font_small.render("STEP [S]", True, COLORS['W'] if self.paused else (150, 150, 150))
+        screen.blit(txt_step, txt_step.get_rect(center=self.btn_step_rect.center))
+
+        # 3. NÚT 3: RESTART [R]
+        x3 = gap * 3 + btn_w * 2
+        self.btn_restart_rect = pygame.Rect(x3, btn_y, btn_w, btn_h)
+        pygame.draw.rect(screen, (180, 45, 45), self.btn_restart_rect, border_radius=6) # Đỏ
+        pygame.draw.rect(screen, COLORS['W'], self.btn_restart_rect, width=1, border_radius=6)
+        txt_restart = self.font_small.render("RESTART [R]", True, COLORS['W'])
+        screen.blit(txt_restart, txt_restart.get_rect(center=self.btn_restart_rect.center))
